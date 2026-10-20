@@ -6,7 +6,7 @@ import re
 import threading
 from flask import Flask
 import google.generativeai as genai
-from telegram import ChatPermissions, Update
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 
 # ==========================================
-# ⚙️ কনফিগারেশন (একদম সেট করা)
+# ⚙️ কনফিগারেশন
 # ==========================================
 BOT_TOKEN = "8777986749:AAHYtOSUckLrEfJE4D88LPKoi1Y-Hk3Nvfo"
 GEMINI_KEY = "AQ.Ab8RN6JbMDwxYw80lVx4Aa9IX-SmuJcgkQh05qEMR2Hgsk925g"
@@ -81,7 +81,6 @@ async def send_report_log(
       f"❌ **Reason:** {reason}\n"
       f"💬 **Message:** `{text}`"
   )
-  # অ্যাডমিন/বট মেসেজ হ্যান্ডলিং
   logger.info(f"Report Logged: {log_message}")
 
 
@@ -89,21 +88,23 @@ async def send_report_log(
 # 🤖 বট কমান্ড ও বার্তা হ্যান্ডলার
 # ==========================================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-  await update.message.reply_text(
-      "💖 হ্যালো! আমি OmniGuard AI Companion। গ্রুপে আমার সাথে কথা বলতে মেসেজে"
-      " আমাকে মেনশন বা রিপ্লাই করো। 🥰"
-  )
+  if update.message:
+    await update.message.reply_text(
+        "💖 হ্যালো! আমি OmniGuard AI Companion। গ্রুপে আমার সাথে কথা বলতে মেসেজে"
+        " আমাকে মেনশন বা রিপ্লাই করো। 🥰"
+    )
 
 
 async def welcome_new_member(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-  for member in update.message.new_chat_members:
-    await update.message.reply_text(
-        f"💖 স্বাগতম {member.mention_html()} আমাদের গ্রুপে! আশা করি তোমার সময়টা"
-        " খুব সুন্দর কাটবে। 🥰",
-        parse_mode="HTML",
-    )
+  if update.message and update.message.new_chat_members:
+    for member in update.message.new_chat_members:
+      await update.message.reply_text(
+          f"💖 স্বাগতম {member.mention_html()} আমাদের গ্রুপে! আশা করি তোমার সময়টা"
+          " খুব সুন্দর কাটবে। 🥰",
+          parse_mode="HTML",
+      )
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -127,9 +128,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
   has_inbox = bool(INBOX_REGEX.search(text))
   word_count = len(text.split())
 
-  # এডমিন ছাড়া সাধারণ ইউজারদের মডারেশন রুলস
   if not is_admin:
-    # ১. ইনবক্স রুলস
     if has_inbox:
       try:
         await message.delete()
@@ -152,7 +151,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
       except Exception as e:
         logger.error(e)
 
-    # ২. ওয়ার্ড লিমিট (সর্বোচ্চ ৩০ শব্দ)
     if word_count > 30:
       try:
         await message.delete()
@@ -171,7 +169,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
       except Exception as e:
         logger.error(e)
 
-    # ৩. লিংক কুলডাউন (৫ মিনিট)
     if has_link:
       now = datetime.now()
       last_link_time = link_cooldowns.get(user.id)
@@ -203,9 +200,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
       else:
         link_cooldowns[user.id] = now
 
-  # ==========================================
-  # 🤖 স্মার্ট AI চ্যাট রিপ্লাই
-  # ==========================================
   bot_username = context.bot.username
   is_for_bot = False
 
